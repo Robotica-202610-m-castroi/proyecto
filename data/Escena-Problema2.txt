@@ -1,8 +1,8 @@
 Dimensiones,4.0,5.0
 q0,0.75,0.75,0
 qf,3.25,4.25,90
-dFrente,0.5418
-dDerecha,0.6118
+dFrente,0.8
+dDerecha,0.78
 Obstaculos,5
 Obstaculo1_Pto1,3.0,0.5
 Obstaculo1_Pto2,3.5,1.0
