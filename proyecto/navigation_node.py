@@ -10,6 +10,11 @@ import os
 from .logic.lidar import obtener_distancia_angulo, obtener_distancias_rango
 from .logic.movement import calcular_rotacion, calcular_movimiento_relativo
 
+from .models.scene import Scene
+from .models.Cspace import CSpace
+
+from .logic.plots import *
+
 class NavigationNode(Node):
     def __init__(self):
         super().__init__('student_navigation')
@@ -32,7 +37,7 @@ class NavigationNode(Node):
         self.pose_inicial_relativa = None 
         
         # Variable para almacenar el texto crudo de la escena
-        self.texto_escena = ""
+        self.texto_escena = None
         
         # Variables para comunicar el menú interactivo con el control loop
         self.comando_activo = None
@@ -45,6 +50,8 @@ class NavigationNode(Node):
         # Iniciamos el menú en un hilo separado para NO bloquear a ROS2
         self.hilo_menu = threading.Thread(target=self.menu_interactivo, daemon=True)
         self.hilo_menu.start()
+        
+        self.scene = None
 
     # =======================================================
     # CALLBACKS DE ROS2
@@ -172,6 +179,14 @@ class NavigationNode(Node):
             self.get_logger().error(f"No se encontró el archivo: {ruta_archivo}")
         except Exception as e:
             self.get_logger().error(f"Error al leer la escena: {e}")
+    
+    def parse_scene_text(self, text:str):
+        scene = {}
+        for i, line in enumerate(text.splitlines()):
+            print(line)
+            data = line.split(',')
+            scene[data[0].lower()] = list(map(float, data[1:]))
+        return scene
 
     # =======================================================
     # BUCLE PRINCIPAL (Área de trabajo del estudiante)
@@ -179,60 +194,25 @@ class NavigationNode(Node):
     def menu_interactivo(self):
         """Pide input por consola sin interrumpir la recepción de datos de los sensores."""
         while rclpy.ok():
-            if self.comando_activo is None:
+            if self.texto_escena is None:
                 print("\n" + "="*35)
-                print("--- MENÚ DE NAVEGACIÓN ---")
-                print("1. Leer distancia en un ángulo")
-                print("2. Leer distancias en un rango")
-                print("3. Rotar grados relativos")
-                print("4. Mover relativo a la posición (X, Y)")
-                print("5. Cargar Escena de texto")
-                print("6. Leer distancia por dirección (Frente, Atras, Izquierda, Derecha)")
+                print("--- CARGAR ESCENA DE TEXTO ---")
+
                 print("="*35)
                 
                 try:
-                    opcion = input("Elige una opción (1-6): ")
+                    numero = int(input("Ingresa el número de la escena (1-6): "))
                     
-                    if opcion == '1':
-                        angulo = float(input("Ingresa el ángulo (en grados): "))
-                        self.parametros_comando = [angulo]
-                        self.comando_activo = 1
-                    
-                    elif opcion == '2':
-                        ang_min = float(input("Ángulo mínimo (ej. -30): "))
-                        ang_max = float(input("Ángulo máximo (ej. 30): "))
-                        self.parametros_comando = [ang_min, ang_max]
-                        self.comando_activo = 2
-                    
-                    elif opcion == '3':
-                        grados = float(input("¿Cuántos grados quieres rotar? (Positivo=Izq, Negativo=Der): "))
-                        self.parametros_comando = [grados]
-                        self.comando_activo = 3
-                    
-                    elif opcion == '4':
-                        x = float(input("Cuánto avanzar en X (Frente/Atrás) [en metros]: "))
-                        y = float(input("Cuánto avanzar en Y (Izquierda/Derecha) [en metros]: "))
-                        self.parametros_comando = [x, y]
-                        self.comando_activo = 4
-
-                    elif opcion == '5':
-                        numero = int(input("Ingresa el número de la escena (1-6): "))
-                        self.parametros_comando = [numero]
-                        self.comando_activo = 5
-
-                    elif opcion == '6':
-                        dir_input = input("¿Qué dirección? (frente, atras, izquierda, derecha): ").strip().lower()
-                        if dir_input in ['frente', 'atras', 'izquierda', 'derecha']:
-                            self.parametros_comando = [dir_input]
-                            self.comando_activo = 6
-                        else:
-                            print("Dirección no válida. Intenta de nuevo.")
-                        
-                    else:
-                        print("Opción no válida. Intenta de nuevo.")
-                        
+                    self.cargar_escena(numero_escena=numero)
+                    if self.texto_escena:
+                        raw_scene = self.parse_scene_text(self.texto_escena)
+                        self.scene = Scene(raw_scene)
+                except FileNotFoundError:
+                    print("El archivo deseado no existe.")    
                 except ValueError:
                     print("Por favor, ingresa únicamente números válidos.")
+                except Exception as e:
+                    print(f"Error al cargar la escena: {e}")
 
     # =======================================================
     # BUCLE PRINCIPAL DE CONTROL
@@ -242,40 +222,34 @@ class NavigationNode(Node):
         if self.last_scan is None:
             return
 
-        if self.comando_activo == 1:
-            dist = self.leer_distancia_en_angulo(self.parametros_comando[0])
-            self.get_logger().info(f"Distancia a {self.parametros_comando[0]}°: {dist:.2f} m")
-            self.comando_activo = None
+        if self.scene:
+            # TODO: Hacer cosas
+            print("Escena cargada, comenzando planificación...")
             
-        elif self.comando_activo == 2:
-            distancias = self.leer_distancias_en_rango(self.parametros_comando[0], self.parametros_comando[1])
-            self.get_logger().info(f"Distancias detectadas: {distancias}")
-            self.comando_activo = None
+            # 1. Construir C-Espacio con theta=0
+            cspace = CSpace(self.scene.robot_geom, self.scene.obstacles, self.scene.conf_init.theta)
             
-        elif self.comando_activo == 3:
-            if self.rotar_relativo(self.parametros_comando[0]):
-                self.get_logger().info("Rotación completada exitosamente.")
-                self.comando_activo = None
-                
-        elif self.comando_activo == 4:
-            estado = self.mover_relativo(self.parametros_comando[0], self.parametros_comando[1])
+            configure_plot()
             
-            if estado == 'COMPLETADO':
-                self.get_logger().info("Desplazamiento relativo completado.")
-                self.comando_activo = None
-            elif estado == 'BLOQUEADO':
-                self.get_logger().warn("¡Obstáculo detectado! Ruta bloqueada. Abortando movimiento.")
-                self.comando_activo = None
+            plot_polygon([[0,0], [self.scene.dimension[0], 0], [*self.scene.dimension], [0, self.scene.dimension[1]]], 'y:', thickness=5, labelstr='Frontera W-Space / C-Space')
+            
+            plot_polygon(cspace.robot_rotated.points, color='b--', labelstr=f'Robot (rotado θ={self.scene.conf_init.theta})')
+            
+            for obs in cspace.obstacles_geom:
+                print(obs.points)
+                plot_polygon(obs.points, 'r-', labelstr=f'Obstáculo {obs.id}')
         
-        elif self.comando_activo == 5:
-            self.cargar_escena(self.parametros_comando[0])
-            self.comando_activo = None
+            for idx, cobs in enumerate(cspace.c_obstacles):
+                print(cobs)
+                plot_polygon(cobs, 'g-', labelstr=f'C-Obstáculo {idx + 1}')
 
-        elif self.comando_activo == 6:
-            direccion = self.parametros_comando[0]
-            dist = self.leer_distancia_direccion(direccion)
-            self.get_logger().info(f"Distancia hacia el {direccion.upper()}: {dist:.2f} m")
-            self.comando_activo = None
+            # 2. Discretizar C-Espacio en matriz de celdas libres, semi-libres, ocupadas
+            
+            # 3. Usando la matriz, planificar una ruta de scene.config_init a scene.config_final (resutlado en .txt)
+            
+            # 4. Ejecutar la trayectoria asociada a la planificacion
+            
+            # 5. Una vez acabada localizar y reportar configuraciones (resultado en .txt)
 
 def main(args=None):
     rclpy.init(args=args)
