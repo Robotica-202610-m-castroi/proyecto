@@ -3,6 +3,8 @@ from rclpy.node import Node
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
+from .logic.grid import discretizar_cspace
+
 import math
 import threading
 import os
@@ -244,6 +246,10 @@ class NavigationNode(Node):
                 plot_polygon(cobs, 'g-', labelstr=f'C-Obstáculo {idx + 1}')
 
             # 2. Discretizar C-Espacio en matriz de celdas libres, semi-libres, ocupadas
+            grid, cells = discretizar_cspace(self.scene, cspace, resolucion=0.2)
+
+            plot_cell_classification(cells, grid)
+            show()
             
             # 3. Usando la matriz, planificar una ruta de scene.config_init a scene.config_final
             
