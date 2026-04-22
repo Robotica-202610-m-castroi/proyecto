@@ -245,9 +245,9 @@ class NavigationNode(Node):
 
             # 2. Discretizar C-Espacio en matriz de celdas libres, semi-libres, ocupadas
             
-            # 3. Usando la matriz, planificar una ruta de scene.config_init a scene.config_final (resutlado en .txt)
+            # 3. Usando la matriz, planificar una ruta de scene.config_init a scene.config_final
             
-            # 4. Ejecutar la trayectoria asociada a la planificacion
+            # 4. Ejecutar la trayectoria asociada a la planificacion (asumir que la entrada es la matrix con la celdas por la cuales se debe mover, dejar configuraciones en txt)
             
             # 5. Una vez acabada localizar y reportar configuraciones (resultado en .txt)
 
