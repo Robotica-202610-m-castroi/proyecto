@@ -24,7 +24,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'navigation = proyecto.navigation_node:main',
+            'navigation_node = proyecto.navigation_node:main',
         ],
     },
 )

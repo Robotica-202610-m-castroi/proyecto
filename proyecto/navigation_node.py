@@ -166,8 +166,8 @@ class NavigationNode(Node):
         Lee el archivo de la escena indicada y guarda el texto en self.texto_escena.
         """
         # Calculamos la ruta subiendo un nivel de directorio desde este archivo hasta la carpeta 'data'
-        directorio_actual = os.path.dirname(os.path.abspath(__file__))
-        ruta_archivo = os.path.join(directorio_actual, '..', 'data', f'Escena-Problema{numero_escena}.txt')
+        workspace_path = os.path.expanduser('~/proyecto')
+        ruta_archivo = os.path.join(workspace_path, 'data', f'Escena-Problema{numero_escena}.txt')
         
         try:
             with open(ruta_archivo, 'r', encoding='utf-8') as archivo:
