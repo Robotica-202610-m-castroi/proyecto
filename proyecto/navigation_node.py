@@ -11,6 +11,7 @@ import os
 
 from .logic.lidar import obtener_distancia_angulo, obtener_distancias_rango
 from .logic.movement import calcular_rotacion, calcular_movimiento_relativo
+from .logic.trajectory import *
 
 from .models.scene import Scene
 from .models.Cspace import CSpace
@@ -254,7 +255,35 @@ class NavigationNode(Node):
             # 3. Usando la matriz, planificar una ruta de scene.config_init a scene.config_final
             
             # 4. Ejecutar la trayectoria asociada a la planificacion (asumir que la entrada es la matrix con la celdas por la cuales se debe mover, dejar configuraciones en txt)
+            # --> 4.1 Convertir representación matricial a trayectoria
+            # ! discrete_space es una matrix nxm donde M[i, j] = [a, b , c, d, e]  y cada uno de esos a su vez es una coordenada (x, y)
+                # c ---------- d
+                # |            |
+                # |            |
+                # |      e     |
+                # |            |
+                # |            |
+                # a ---------- b
+                discrete_space = np.load('discrete_space_example.npy')
+                route = [[2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [3, 5], [3, 6], [4, 7], [3, 7], [3, 6]] # TODO: reemplazar por ruta calculada
+                configs_list = define_trayectory_configs(discrete_space, route, self.scene.conf_final)
+                movements = define_trayectory_movements(configs_list)
+            # --> 4.2 Ejectuar trayectoria
             
+                for mov in movements:
+                    if mov.is_rotation:
+                        if self.rotar_relativo(mov.da):
+                            self.get_logger().info("Rotación completada exitosamente.")
+                    else:
+                        mov_state = self.mover_relativo(mov.dx, mov.dy)
+                        if mov_state == 'COMPLETADO':
+                            self.get_logger().info("Desplazamiento relativo completado.")
+                        elif mov_state == 'BLOQUEADO':
+                            self.get_logger().warn("¡Obstáculo detectado! Ruta bloqueada. Abortando movimiento.")
+                            break
+
+                    
+                        
             # 5. Una vez acabada localizar y reportar configuraciones (resultado en .txt)
 
 def main(args=None):

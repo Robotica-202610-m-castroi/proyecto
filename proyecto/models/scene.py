@@ -1,5 +1,21 @@
 import numpy as np
 
+class Movement:
+    
+    def __init__(self, is_rotation, dx, dy, da) -> None:
+        self.is_rotation = is_rotation
+        self.dx = dx
+        self.dy = dy
+        self.da = da
+    
+    def __repr__(self) -> str:
+        return f"Displacement(rotation={self.is_rotation}, dx={self.dx}, dy={self.dy}, da={self.da})"
+    
+    def __str__(self) -> str:
+        return f"Displacement(rotation={self.is_rotation}, dx={self.dx:.2f}, dy={self.dy:.2f}, da={self.da:.2f})"
+
+
+
 # TODO: clean up, point might not be necessary
 class Point:
     def __init__(self, x, y) -> None:
@@ -24,7 +40,7 @@ class Configuration:
     def __init__(self, x, y, theta) -> None:
         self.point = Point(x, y)
         self.theta = theta
-        self.conf = [x, y, theta]
+        self.conf = np.array([x, y, theta])
     
     def __repr__(self):
         return f"Configuration(x={self.point.x}, y={self.point.y}, theta={self.theta})"
