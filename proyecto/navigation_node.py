@@ -226,7 +226,6 @@ class NavigationNode(Node):
             return
 
         if self.scene:
-            # TODO: Hacer cosas
             print("Escena cargada, comenzando planificación...")
             
             # 1. Construir C-Espacio con theta=0
@@ -264,23 +263,23 @@ class NavigationNode(Node):
                 # |            |
                 # |            |
                 # a ---------- b
-                discrete_space = np.load('discrete_space_example.npy')
-                route = [[2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [3, 5], [3, 6], [4, 7], [3, 7], [3, 6]] # TODO: reemplazar por ruta calculada
-                configs_list = define_trayectory_configs(discrete_space, route, self.scene.conf_final)
-                movements = define_trayectory_movements(configs_list)
+            discrete_space = np.load('discrete_space_example.npy')
+            route = [[2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [3, 5], [3, 6], [4, 7], [3, 7], [3, 6]] # TODO: reemplazar por ruta calculada
+            configs_list = define_trayectory_configs(discrete_space, route, self.scene.conf_final)
+            movements = define_trayectory_movements(configs_list)
             # --> 4.2 Ejectuar trayectoria
             
-                for mov in movements:
-                    if mov.is_rotation:
-                        if self.rotar_relativo(mov.da):
-                            self.get_logger().info("Rotación completada exitosamente.")
-                    else:
-                        mov_state = self.mover_relativo(mov.dx, mov.dy)
-                        if mov_state == 'COMPLETADO':
-                            self.get_logger().info("Desplazamiento relativo completado.")
-                        elif mov_state == 'BLOQUEADO':
-                            self.get_logger().warn("¡Obstáculo detectado! Ruta bloqueada. Abortando movimiento.")
-                            break
+            for mov in movements:
+                if mov.is_rotation:
+                    if self.rotar_relativo(mov.da):
+                        self.get_logger().info("Rotación completada exitosamente.")
+                else:
+                    mov_state = self.mover_relativo(mov.dx, mov.dy)
+                    if mov_state == 'COMPLETADO':
+                        self.get_logger().info("Desplazamiento relativo completado.")
+                    elif mov_state == 'BLOQUEADO':
+                        self.get_logger().warn("¡Obstáculo detectado! Ruta bloqueada. Abortando movimiento.")
+                        break
 
                     
                         
