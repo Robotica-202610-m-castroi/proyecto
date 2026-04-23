@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import math
 
 def plot_unit_circle(vectors):
     ax = plt.gca()
@@ -113,6 +114,31 @@ def plot_cell_classification(grid, classes):
             )
             
             plotted_labels.add(lbl)
+
+
+def plot_path(path, init_pt, end_pt, res):
+    
+    for p in path:
+        y, x = p
+
+        x_min = x * res
+        y_min = y * res
+
+        cell_xs = [x_min, x_min+res, x_min+res, x_min]
+        cell_ys = [y_min, y_min, y_min+res, y_min+res]
+
+        plt.fill(cell_xs, cell_ys, color='red', alpha=0.5)
+
+    # inicio
+    plot_config_pt(init_pt, "Inicio", 'bo')
+
+    # final
+    plot_config_pt(end_pt, "Final", 'go')
+        
+def plot_robot_orientation(init_pt, theta):
+    dx0 = 0.3 * math.cos(theta)
+    dy0 = 0.3 * math.sin(theta)
+    plt.arrow(init_pt[0], init_pt[1], dx0, dy0, color='blue', head_width=0.1)
 
 def configure_plot():
         fig, ax = plt.subplots(figsize=(10, 10))
