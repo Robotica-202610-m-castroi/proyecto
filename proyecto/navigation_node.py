@@ -57,6 +57,9 @@ class NavigationNode(Node):
         self.hilo_menu = threading.Thread(target=self.menu_interactivo, daemon=True)
         self.hilo_menu.start()
         
+         # Signal to wait for command completion
+        self.command_done = threading.Event()
+        
         self.scene = None
         self.movements = None
         
@@ -274,7 +277,7 @@ class NavigationNode(Node):
                         # 2. Discretizar el espacio de trabajo
                         # ======================================
                         
-                        res = 0.2
+                        res = 0.5
                         grid, cells = discretizar_cspace(self.scene, cspace, resolucion=res)
                         
                         plot_cell_classification(cells, grid)
@@ -363,37 +366,25 @@ class NavigationNode(Node):
                             # --> 4.2 Ejectuar trayectoria
                             
                             
-                            self.comando_activo = 1
-                            i = 0
-                            while i < len(self.movements):
+                            self.get_logger().info("Comenzando ejecución de trayectoria")
+
+                            for i, mov in enumerate(self.movements):
                                 if self.blocked:
-                                    self.get_logger().info("se paro el robot")
-                                    self.comand_activo = None
+                                    self.get_logger().warn("Se paró el robot, saliendo de ejecucción de trayectoria.")
                                     break
-                                if self.comando_activo == None:
-                                    
-                                    # mov_state = self.mover_relativo(mov.dx, mov.dy)
-                                    # if mov_state == 'COMPLETADO':
-                                    #     self.get_logger().info("Desplazamiento relativo completado.")
-                                    # elif mov_state == 'BLOQUEADO':
-                                    #     self.get_logger().warn("¡Obstáculo detectado! Ruta bloqueada. Abortando movimiento.")
-                                    #     break
-                                    i += 1
-                                    self.comand_activo = 1
+                                
+                                if mov.is_rotation:
+                                    self.get_logger().info(f"Rotando {mov.da}")
+                                    self.parametros_comando = [mov.da]
+                                    self.comando_activo = 3
                                 else:
-                                    mov = self.movements[i]
-                                    if mov.is_rotation:
-                                    # if self.rotar_relativo(mov.da):
-                                        self.get_logger().info(f"Rotando {mov.da}")
-                                        self.parametros_comando = [mov.da]
-                                        self.comando_activo = 3
-                                    else:
-                                        self.parametros_comando = [mov.dx, mov.dy]
-                                        self.get_logger().info(f" {i},Desplazando x, y {self.parametros_comando}")
-                                        self.comando_activo = 4
-                                print(i)
+                                    self.get_logger().info(f"{i}: Desplazando x, y {[mov.forward, 0]}")
+                                    self.parametros_comando = [mov.forward, 0]
+                                    self.comando_activo = 4
+                                
+                                self.command_done.wait()
+                                self.command_done.clear()
                                 time.sleep(0.1)
-                            # for mov in self.movements:
                                 
                         else:
                             print("No se encontró ruta")
@@ -411,15 +402,15 @@ class NavigationNode(Node):
     # BUCLE PRINCIPAL DE CONTROL
     # =======================================================
     def control_loop(self):
-        # Runs every 0.1s
         # Evitar fallos si no hay datos del sensor todavía
         if self.last_scan is None:
             pass
+        
         if self.comando_activo == 3:
-            self.get_logger().info(f"Comando activo = {self.comando_activo}")
             if self.rotar_relativo(self.parametros_comando[0]):
-                # self.get_logger().info("Rotación completada exitosamente.")
+                self.get_logger().info("Rotación completada exitosamente.")
                 self.comando_activo = None
+                self.command_done.set()  # Signal next command
                 
         elif self.comando_activo == 4:
             estado = self.mover_relativo(self.parametros_comando[0], self.parametros_comando[1])
@@ -427,33 +418,20 @@ class NavigationNode(Node):
             if estado == 'COMPLETADO':
                 self.get_logger().info("Desplazamiento relativo completado.")
                 self.comando_activo = None
+                self.command_done.set()  # Signal next command
             elif estado == 'BLOQUEADO':
                 self.get_logger().warn("¡Obstáculo detectado! Ruta bloqueada. Abortando movimiento.")
                 self.blocked = True
-                
                 self.comando_activo = None
-        # if self.movements:
-        #         self.get_logger().info("Comenzando ejecución de trayectoria")
-        #         # --> 4.2 Ejectuar trayectoria
-                
-        #         for mov in self.movements:
-        #             if mov.is_rotation:
-        #                 if self.rotar_relativo(mov.da):
-        #                     self.get_logger().info("Rotación completada exitosamente.")
-        #             else:
-        #                 mov_state = self.mover_relativo(mov.dx, mov.dy)
-        #                 if mov_state == 'COMPLETADO':
-        #                     self.get_logger().info("Desplazamiento relativo completado.")
-        #                 elif mov_state == 'BLOQUEADO':
-        #                     self.get_logger().warn("¡Obstáculo detectado! Ruta bloqueada. Abortando movimiento.")
-        #                     break
+                self.command_done.set()  # Signal to stop waiting
 
-                # 5. Una vez acabada localizar y reportar configuraciones (resultado en .txt)
-                # q_teorica = self.scene.conf_final
-                # q_est = Configuration(self.current_x, self.current_y, self.current_theta)
-                # # print(q-est)
-                # TODO: q_act
-                # TODO: escribir TXT con las configuraciones
+
+        # 5.TODO: Una vez acabada localizar y reportar configuraciones (resultado en .txt)
+        # q_teorica = self.scene.conf_final
+        # q_est = Configuration(self.current_x, self.current_y, self.current_theta)
+        # # print(q-est)
+        # TODO: q_act
+        # TODO: escribir TXT con las configuraciones
 
             
 

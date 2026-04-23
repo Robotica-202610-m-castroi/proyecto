@@ -4,15 +4,14 @@ class Movement:
     
     def __init__(self, is_rotation, dx, dy, da) -> None:
         self.is_rotation = is_rotation
-        self.dx = dx
-        self.dy = dy
+        self.forward = dy if dx == 0 else dx
         self.da = da
     
     def __repr__(self) -> str:
-        return f"Displacement(rotation={self.is_rotation}, dx={self.dx}, dy={self.dy}, da={self.da})"
+        return f"Displacement(rotation={self.is_rotation}, forward={self.forward}, da={self.da})"
     
     def __str__(self) -> str:
-        return f"Displacement(rotation={self.is_rotation}, dx={self.dx:.2f}, dy={self.dy:.2f}, da={self.da:.2f})"
+        return f"Displacement(rotation={self.is_rotation}, forward={self.forward:.2f}, da={self.da:.2f})"
 
 
 
