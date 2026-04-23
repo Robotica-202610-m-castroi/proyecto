@@ -1,6 +1,10 @@
+# import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import math
+import datetime
+
+# matplotlib.use('SVG')
 
 def plot_unit_circle(vectors):
     ax = plt.gca()
@@ -156,6 +160,19 @@ def plot_config_pt(pt, label, icon):
         x, y = pt
         ax.plot(x, y, icon, label=label)
 
+def save():
+    fig = plt.gcf()
+    axes = fig.get_axes()
+
+    
+    for ax in axes:
+        if ax.get_legend_handles_labels()[0]: 
+            ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.10), ncol=3)
+    
+    plt.tight_layout()
+    
+    plt.savefig(f'../planificacion_{datetime.datetime.now()}.png')
+
 def show():
     fig = plt.gcf()
     axes = fig.get_axes()
@@ -166,4 +183,4 @@ def show():
             ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.10), ncol=3)
     
     plt.tight_layout()
-    plt.show(block=True)
+    plt.show(block=False)

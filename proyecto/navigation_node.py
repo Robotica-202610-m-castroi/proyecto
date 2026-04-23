@@ -5,7 +5,6 @@ from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
 from .logic.grid import discretizar_cspace
 from .logic.pathfinding import astar
-import matplotlib.pyplot as plt
 
 import math
 import threading
@@ -19,6 +18,8 @@ from .models.scene import Scene
 from .models.Cspace import CSpace
 
 from .logic.plots import *
+
+import time
 
 class NavigationNode(Node):
     def __init__(self):
@@ -57,6 +58,9 @@ class NavigationNode(Node):
         self.hilo_menu.start()
         
         self.scene = None
+        self.movements = None
+        
+        self.blocked = False
 
     # =======================================================
     # CALLBACKS DE ROS2
@@ -171,8 +175,10 @@ class NavigationNode(Node):
         Lee el archivo de la escena indicada y guarda el texto en self.texto_escena.
         """
         # Calculamos la ruta subiendo un nivel de directorio desde este archivo hasta la carpeta 'data'
-        workspace_path = os.path.expanduser('~/proyecto')
-        ruta_archivo = os.path.join(workspace_path, 'data', f'Escena-Problema{numero_escena}.txt')
+        # workspace_path = os.path.expanduser('~/proyecto')
+        directorio_actual = os.path.dirname(os.path.abspath(__file__))
+        ruta_archivo = os.path.join(directorio_actual, '..', 'data', f'Escena-Problema{numero_escena}.txt')
+        # ruta_archivo = os.path.join(workspace_path, 'data', f'Escena-Problema{numero_escena}.txt')
         
         try:
             with open(ruta_archivo, 'r', encoding='utf-8') as archivo:
@@ -225,15 +231,179 @@ class NavigationNode(Node):
                 
                 try:
                     numero = int(input("Ingresa el número de la escena (1-6): "))
-                    
                     self.cargar_escena(numero_escena=numero)
                     if self.texto_escena:
                         raw_scene = self.parse_scene_text(self.texto_escena)
                         self.scene = Scene(raw_scene)
-                except FileNotFoundError:
+                        print("Escena cargada, comenzando planificación...")
+            
+                    if self.scene and not hasattr(self, 'ya_grafico'):
+                        self.ya_grafico = True
+                    
+                    if self.scene:
+                        # ======================================
+                        # 1. Construir el C-Espacio con theta=0
+                        # ======================================
+                        
+                        cspace = CSpace(
+                            self.scene.robot_geom, 
+                            self.scene.obstacles, 
+                            0
+                        )
+                        
+                        configure_plot()
+                        
+                        plot_polygon(
+                            [[0,0], [self.scene.dimension[0], 0], [*self.scene.dimension], [0, self.scene.dimension[1]]], 'y:', thickness=5, 
+                            labelstr='Frontera W-Space / C-Space'
+                        )
+                        
+                        plot_polygon(
+                            cspace.robot_rotated.points,
+                            color='b--', 
+                            labelstr=f'Robot (rotado θ={self.scene.conf_init.theta})'
+                        )
+                        
+                        for obs in cspace.obstacles_geom:
+                            plot_polygon(obs.points, 'r-', labelstr=f'Obstáculo {obs.id}')
+                    
+                        for idx, cobs in enumerate(cspace.c_obstacles):
+                            plot_polygon(cobs, 'g-', labelstr=f'C-Obstáculo {idx + 1}')
+                        
+                        # ======================================
+                        # 2. Discretizar el espacio de trabajo
+                        # ======================================
+                        
+                        res = 0.2
+                        grid, cells = discretizar_cspace(self.scene, cspace, resolucion=res)
+                        
+                        plot_cell_classification(cells, grid)
+
+                        # ================================
+                        # 3. Calcular ruta - algoritmo A*
+                        # ================================
+                        
+                        start, goal = self.get_start_goal_cell(res)
+                        path = astar(grid, start, goal)
+                        if path:
+                            print("Ruta encontrada")
+                            print(path)
+                            
+                            plot_path(
+                                path, 
+                                self.scene.conf_init.conf[:2],
+                                self.scene.conf_final.conf[:2],
+                                res
+                            )
+                            
+                            theta0 = math.radians(self.scene.conf_init.theta)
+                            plot_robot_orientation(
+                                self.scene.conf_init.conf[:2], 
+                                theta0 
+                            )
+                            
+                            thetaf = math.radians(self.scene.conf_final.theta)
+                            plot_robot_orientation(
+                                self.scene.conf_final.conf[:2], 
+                                thetaf
+                            )
+                            
+                            output_path = os.path.join(
+                                os.path.dirname(os.path.abspath(__file__)),
+                                f"ruta_escena_{numero}.txt"
+                            )
+                            
+                            with open(output_path, 'w', encoding='utf-8') as f:
+                                for c in path:
+                                    f.write(f"{c}\n")
+                            self.get_logger().info(f"Configuraciones guardadas en: {output_path}")
+                            
+                            # show()
+                            
+                            # ================================
+                            # 4. Ejecutar trayectoria
+                            # ================================
+                            # --> 4.1 Convertir representación matricial a trayectoria
+                            # discrete_space es una matrix nxm donde M[i, j] = [a, b , c, d, e]  y cada uno de esos a su vez es una coordenada (x, y)
+                                    # c ---------- d
+                                    # |            |
+                                    # |            |
+                                    # |      e     |
+                                    # |            |
+                                    # |            |
+                                    # a ---------- b
+                            configs_list = define_trayectory_configs(cells, path, self.scene.conf_final)
+
+                            print(self.current_x, self.current_y, self.current_theta)
+                            
+                            output_path = os.path.join(
+                                os.path.dirname(os.path.abspath(__file__)),
+                                f"configuraciones_escena_{numero}.txt"
+                            )
+                            
+                            with open(output_path, 'w', encoding='utf-8') as f:
+                                for c in configs_list:
+                                    f.write(f"{c}\n")
+                            self.get_logger().info(f"Configuraciones guardadas en: {output_path}")
+                        
+                            # configs_list.insert(0, Configuration(self.current_x, self.current_y, self.current_theta))
+                            self.movements = define_trayectory_movements(configs_list)
+                            
+                            output_path = os.path.join(
+                                os.path.dirname(os.path.abspath(__file__)),
+                                f"trayectorias_escena_{numero}.txt"
+                            )
+                            
+                            with open(output_path, 'w', encoding='utf-8') as f:
+                                for m in self.movements:
+                                    f.write(f"{m}\n")
+                                    
+                            self.get_logger().info(f"Movimientos guardados en: {output_path}")
+                            self.get_logger().info("Comenzando ejecución de trayectoria")
+                            # --> 4.2 Ejectuar trayectoria
+                            
+                            
+                            self.comando_activo = 1
+                            i = 0
+                            while i < len(self.movements):
+                                if self.blocked:
+                                    self.get_logger().info("se paro el robot")
+                                    self.comand_activo = None
+                                    break
+                                if self.comando_activo == None:
+                                    
+                                    # mov_state = self.mover_relativo(mov.dx, mov.dy)
+                                    # if mov_state == 'COMPLETADO':
+                                    #     self.get_logger().info("Desplazamiento relativo completado.")
+                                    # elif mov_state == 'BLOQUEADO':
+                                    #     self.get_logger().warn("¡Obstáculo detectado! Ruta bloqueada. Abortando movimiento.")
+                                    #     break
+                                    i += 1
+                                    self.comand_activo = 1
+                                else:
+                                    mov = self.movements[i]
+                                    if mov.is_rotation:
+                                    # if self.rotar_relativo(mov.da):
+                                        self.get_logger().info(f"Rotando {mov.da}")
+                                        self.parametros_comando = [mov.da]
+                                        self.comando_activo = 3
+                                    else:
+                                        self.parametros_comando = [mov.dx, mov.dy]
+                                        self.get_logger().info(f" {i},Desplazando x, y {self.parametros_comando}")
+                                        self.comando_activo = 4
+                                print(i)
+                                time.sleep(0.1)
+                            # for mov in self.movements:
+                                
+                        else:
+                            print("No se encontró ruta")
+                        
+                except FileNotFoundError as e:
                     print("El archivo deseado no existe.")    
-                except ValueError:
+                    print(e)
+                except ValueError as e:
                     print("Por favor, ingresa únicamente números válidos.")
+                    print(e)
                 except Exception as e:
                     print(f"Error al cargar la escena: {e}")
 
@@ -241,120 +411,55 @@ class NavigationNode(Node):
     # BUCLE PRINCIPAL DE CONTROL
     # =======================================================
     def control_loop(self):
+        # Runs every 0.1s
         # Evitar fallos si no hay datos del sensor todavía
         if self.last_scan is None:
             pass
-        
-
-        if self.scene:
-            print("Escena cargada, comenzando planificación...")
-            
-            if self.scene and not hasattr(self, 'ya_grafico'):
-                self.ya_grafico = True
-            
-            # 1. Construir C-Espacio con theta=0
-            cspace = CSpace(
-                self.scene.robot_geom, 
-                self.scene.obstacles, 
-                self.scene.conf_init.theta
-            )
-            
-            configure_plot()
-            
-            plot_polygon(
-                [[0,0], [self.scene.dimension[0], 0], [*self.scene.dimension], [0, self.scene.dimension[1]]], 'y:', thickness=5, 
-                labelstr='Frontera W-Space / C-Space'
-            )
-            
-            plot_polygon(
-                cspace.robot_rotated.points,
-                color='b--', 
-                labelstr=f'Robot (rotado θ={self.scene.conf_init.theta})'
-            )
-            
-            for obs in cspace.obstacles_geom:
-                plot_polygon(obs.points, 'r-', labelstr=f'Obstáculo {obs.id}')
-        
-            for idx, cobs in enumerate(cspace.c_obstacles):
-                plot_polygon(cobs, 'g-', labelstr=f'C-Obstáculo {idx + 1}')
-            
-            # 2. GRID
-            res = 0.2
-            grid, cells = discretizar_cspace(self.scene, cspace, resolucion=res)
-
-            plot_cell_classification(cells, grid)
-
-            # ================================
-            # 3. Calcular ruta - algoritmo A*
-            # ================================
-            
-            start, goal = self.get_start_goal_cell(res)
-            path = astar(grid, start, goal)
-            print(path)
-            if path:
-                print("Ruta encontrada")
-                plot_path(
-                    path, 
-                    self.scene.conf_init.conf[:2],
-                    self.scene.conf_final.conf[:2],
-                    res
-                )
+        if self.comando_activo == 3:
+            self.get_logger().info(f"Comando activo = {self.comando_activo}")
+            if self.rotar_relativo(self.parametros_comando[0]):
+                # self.get_logger().info("Rotación completada exitosamente.")
+                self.comando_activo = None
                 
-                # =========================
-                # ORIENTACIÓN
-                # =========================
-                theta0 = math.radians(self.scene.conf_init.theta)
-                plot_robot_orientation(
-                    self.scene.conf_init.conf[:2], 
-                    theta0 
-                )
+        elif self.comando_activo == 4:
+            estado = self.mover_relativo(self.parametros_comando[0], self.parametros_comando[1])
+            
+            if estado == 'COMPLETADO':
+                self.get_logger().info("Desplazamiento relativo completado.")
+                self.comando_activo = None
+            elif estado == 'BLOQUEADO':
+                self.get_logger().warn("¡Obstáculo detectado! Ruta bloqueada. Abortando movimiento.")
+                self.blocked = True
                 
-                thetaf = math.radians(self.scene.conf_final.theta)
-                plot_robot_orientation(
-                    self.scene.conf_final.conf[:2], 
-                    thetaf
-                )
+                self.comando_activo = None
+        # if self.movements:
+        #         self.get_logger().info("Comenzando ejecución de trayectoria")
+        #         # --> 4.2 Ejectuar trayectoria
+                
+        #         for mov in self.movements:
+        #             if mov.is_rotation:
+        #                 if self.rotar_relativo(mov.da):
+        #                     self.get_logger().info("Rotación completada exitosamente.")
+        #             else:
+        #                 mov_state = self.mover_relativo(mov.dx, mov.dy)
+        #                 if mov_state == 'COMPLETADO':
+        #                     self.get_logger().info("Desplazamiento relativo completado.")
+        #                 elif mov_state == 'BLOQUEADO':
+        #                     self.get_logger().warn("¡Obstáculo detectado! Ruta bloqueada. Abortando movimiento.")
+        #                     break
 
-            else:
-                print("No se encontró ruta")
+                # 5. Una vez acabada localizar y reportar configuraciones (resultado en .txt)
+                # q_teorica = self.scene.conf_final
+                # q_est = Configuration(self.current_x, self.current_y, self.current_theta)
+                # # print(q-est)
+                # TODO: q_act
+                # TODO: escribir TXT con las configuraciones
 
-            show()
             
-            # 4. Ejecutar la trayectoria asociada a la planificacion (asumir que la entrada es la matrix con la celdas por la cuales se debe mover, dejar configuraciones en txt)
-            # --> 4.1 Convertir representación matricial a trayectoria
-            # ! discrete_space es una matrix nxm donde M[i, j] = [a, b , c, d, e]  y cada uno de esos a su vez es una coordenada (x, y)
-                # c ---------- d
-                # |            |
-                # |            |
-                # |      e     |
-                # |            |
-                # |            |
-                # a ---------- b
-            discrete_space = np.load('discrete_space_example.npy')
-            route = [[2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [3, 5], [3, 6], [4, 7], [3, 7], [3, 6]] # TODO: reemplazar por ruta calculada
-            configs_list = define_trayectory_configs(discrete_space, route, self.scene.conf_final)
-            
-            # TODO: escribir TXT con una configuración x linea
-            movements = define_trayectory_movements(configs_list)
-            # --> 4.2 Ejectuar trayectoria
-            
-            for mov in movements:
-                if mov.is_rotation:
-                    if self.rotar_relativo(mov.da):
-                        self.get_logger().info("Rotación completada exitosamente.")
-                else:
-                    mov_state = self.mover_relativo(mov.dx, mov.dy)
-                    if mov_state == 'COMPLETADO':
-                        self.get_logger().info("Desplazamiento relativo completado.")
-                    elif mov_state == 'BLOQUEADO':
-                        self.get_logger().warn("¡Obstáculo detectado! Ruta bloqueada. Abortando movimiento.")
-                        break
 
-            # 5. Una vez acabada localizar y reportar configuraciones (resultado en .txt)
-            q_teorica = self.scene.conf_final
-            q_est = Configuration(self.current_x, self.current_y, self.current_theta)
-            # TODO: q_act
-            # TODO: escribir TXT con las configuraciones
+            
+            
+            
 def main(args=None):
     rclpy.init(args=args)
     node = NavigationNode()

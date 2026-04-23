@@ -84,7 +84,8 @@ class Scene:
             pt2 = raw_scene[f'obstaculo{i+1}_pto2']
             
             self.obstacles.append(Obstacle(i+1, [pt1, pt2]))
-        self.robot_geom =  self.calculate_robot_geometry_at_origin(self.conf_init.point)
+            
+        self.robot_geom =  self.calculate_robot_geometry_at_origin(Point(0, 0))
          
     def calculate_robot_geometry_at_origin(self, pt: Point):
         dist = .3 / 2

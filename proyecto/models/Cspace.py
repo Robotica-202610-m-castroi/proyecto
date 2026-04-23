@@ -73,11 +73,11 @@ class CSpace:
             grouped = self.__normal_vectors(self.robot_rotated.normals, obs.normals)
             contacts = self.__contacts(grouped, obs)
 
-            print('\nVertices de C-Obstáculo')
+            # print('\nVertices de C-Obstáculo')
             pts = []
             for contact in contacts:
                 pts.append(contact)
-                print(contact)
+                # print(contact)
             
             self.c_obstacles.append(pts)
 
@@ -117,8 +117,8 @@ class CSpace:
     
     def __contacts(self, grouped_normals, obstacle_geom: Geometry):
         c_obstacle = []
-        print(grouped_normals)
-        print('\nTipos de contacto y sus aristas:')
+        # print(grouped_normals)
+        # print('\nTipos de contacto y sus aristas:')
         for idx, curr_normal in enumerate(grouped_normals):
             if type(curr_normal) == tuple:
                 _, normal_type, normal_idx = curr_normal
@@ -140,7 +140,7 @@ class CSpace:
                 if normal_type == 'r' and next_type == 'o' and prev_type == 'o':
                     # tipo a
                     prime = (normal_idx + 1) % len(self.robot_rotated.points)
-                    print(f'tipo A {normal_idx+1},{next_idx+1} | b_{next_idx+1}-a_{normal_idx+1} , b_{next_idx+1}-a_{prime+1}')
+                    # print(f'tipo A {normal_idx+1},{next_idx+1} | b_{next_idx+1}-a_{normal_idx+1} , b_{next_idx+1}-a_{prime+1}')
                     c_obstacle.extend([
                         obstacle_geom.points[next_idx] - self.robot_rotated.points[normal_idx], 
                         obstacle_geom.points[next_idx] - self.robot_rotated.points[prime]
@@ -150,7 +150,7 @@ class CSpace:
                 if normal_type == 'o' and next_type == 'r' and prev_type == 'r':
                     # tipo b
                     prime = (normal_idx + 1) % len(obstacle_geom.points)
-                    print(f'tipo B {next_idx+1},{normal_idx+1} | b_{normal_idx+1}-a_{next_idx+1} , b_{prime+1}-a_{next_idx+1}')
+                    # print(f'tipo B {next_idx+1},{normal_idx+1} | b_{normal_idx+1}-a_{next_idx+1} , b_{prime+1}-a_{next_idx+1}')
                     
                     c_obstacle.extend([
                         obstacle_geom.points[normal_idx] - self.robot_rotated.points[next_idx], 
@@ -163,7 +163,7 @@ class CSpace:
                 rprime = (normal_idx + 1) % len(self.robot_rotated.points)
                 oprime = (next_idx + 1) % len(obstacle_geom.points)
                 
-                print(f'tipo C {normal_idx+1},{next_idx+1} | b_{next_idx+1}-a_{normal_idx+1}, b_{next_idx+1}-a_{rprime+1}, b_{oprime+1}-a_{normal_idx+1}, b_{oprime+1}-a_{rprime+1}')
+                # print(f'tipo C {normal_idx+1},{next_idx+1} | b_{next_idx+1}-a_{normal_idx+1}, b_{next_idx+1}-a_{rprime+1}, b_{oprime+1}-a_{normal_idx+1}, b_{oprime+1}-a_{rprime+1}')
 
                 # print(
                 #     obstacle_geom.points[next_idx] , self.robot_rotated.points[normal_idx], '||',
