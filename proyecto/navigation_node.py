@@ -4,6 +4,8 @@ from nav_msgs.msg import Odometry
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
 from .logic.grid import discretizar_cspace
+from .logic.pathfinding import astar
+import matplotlib.pyplot as plt
 
 import math
 import threading
@@ -222,36 +224,110 @@ class NavigationNode(Node):
     def control_loop(self):
         # Evitar fallos si no hay datos del sensor todavía
         if self.last_scan is None:
-            return
+            pass
 
         if self.scene:
             # TODO: Hacer cosas
-            print("Escena cargada, comenzando planificación...")
-            
-            # 1. Construir C-Espacio con theta=0
-            cspace = CSpace(self.scene.robot_geom, self.scene.obstacles, self.scene.conf_init.theta)
-            
-            configure_plot()
-            
-            plot_polygon([[0,0], [self.scene.dimension[0], 0], [*self.scene.dimension], [0, self.scene.dimension[1]]], 'y:', thickness=5, labelstr='Frontera W-Space / C-Space')
-            
-            plot_polygon(cspace.robot_rotated.points, color='b--', labelstr=f'Robot (rotado θ={self.scene.conf_init.theta})')
-            
-            for obs in cspace.obstacles_geom:
-                print(obs.points)
-                plot_polygon(obs.points, 'r-', labelstr=f'Obstáculo {obs.id}')
-        
-            for idx, cobs in enumerate(cspace.c_obstacles):
-                print(cobs)
-                plot_polygon(cobs, 'g-', labelstr=f'C-Obstáculo {idx + 1}')
+            if self.scene and not hasattr(self, 'ya_grafico'):
+                self.ya_grafico = True
 
-            # 2. Discretizar C-Espacio en matriz de celdas libres, semi-libres, ocupadas
-            grid, cells = discretizar_cspace(self.scene, cspace, resolucion=0.2)
+    # 1. C-space
+            cspace = CSpace(
+                self.scene.robot_geom,
+                self.scene.obstacles,
+                self.scene.conf_init.theta
+            )
+
+            configure_plot()
+
+            plot_polygon(
+                [[0,0],
+                [self.scene.dimension[0], 0],
+                [*self.scene.dimension],
+                [0, self.scene.dimension[1]]],
+                'y:', thickness=5
+            )
+
+            plot_polygon(
+                cspace.robot_rotated.points,
+                color='b--'
+            )
+
+            for obs in cspace.obstacles_geom:
+                plot_polygon(obs.points, 'r-')
+
+            for cobs in cspace.c_obstacles:
+                plot_polygon(cobs, 'g-')
+
+            # 2. GRID
+            res = 0.2
+            grid, cells = discretizar_cspace(self.scene, cspace, resolucion=res)
 
             plot_cell_classification(cells, grid)
+
+            # =========================
+            # 3. A*
+            # =========================
+            
+
+            qi = self.scene.conf_init
+            qf = self.scene.conf_final
+            theta0 = math.radians(qi.theta)
+            thetaf = math.radians(qf.theta)
+
+            x0 = qi.point.x
+            y0 = qi.point.y
+
+            xf = qf.point.x
+            yf = qf.point.y
+
+            start = (int(y0 / res), int(x0 / res))
+            goal  = (int(yf / res), int(xf / res))
+
+            path = astar(grid, start, goal)
+
+            if path:
+                print("Ruta encontrada")
+
+                for p in path:
+                    y, x = p
+
+                    x_min = x * res
+                    y_min = y * res
+
+                    cell_xs = [x_min, x_min+res, x_min+res, x_min]
+                    cell_ys = [y_min, y_min, y_min+res, y_min+res]
+
+                    plt.fill(cell_xs, cell_ys, color='red', alpha=0.5)
+
+                # inicio
+                plot_config_pt((x0, y0), "Inicio", 'bo')
+
+                # final
+                plot_config_pt((xf, yf), "Final", 'go')
+
+                # =========================
+                # ORIENTACIÓN
+                # =========================
+
+                theta0 = math.radians(qi.theta)
+                thetaf = math.radians(qf.theta)
+
+                # flecha inicio
+                dx0 = 0.3 * math.cos(theta0)
+                dy0 = 0.3 * math.sin(theta0)
+                plt.arrow(x0, y0, dx0, dy0, color='blue', head_width=0.1)
+
+                # flecha final
+                dxf = 0.3 * math.cos(thetaf)
+                dyf = 0.3 * math.sin(thetaf)
+                plt.arrow(xf, yf, dxf, dyf, color='green', head_width=0.1)
+
+            else:
+                print("No se encontró ruta")
+
             show()
             
-            # 3. Usando la matriz, planificar una ruta de scene.config_init a scene.config_final
             
             # 4. Ejecutar la trayectoria asociada a la planificacion (asumir que la entrada es la matrix con la celdas por la cuales se debe mover, dejar configuraciones en txt)
             

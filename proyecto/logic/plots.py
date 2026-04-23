@@ -86,7 +86,7 @@ def plot_cell_classification(grid, classes):
 
             cell = grid[i, j]
 
-            a, b, c, d, _ = cell
+            a, b, c, d = cell
 
             xs = [a[0], b[0], d[0], c[0]]
             ys = [a[1], b[1], d[1], c[1]]
@@ -125,10 +125,10 @@ def configure_plot():
         return fig, ax
 
 
-def plot_config_pt(pt, label, icon, color="tab:red"):
-    ax = plt.gca()
-    x, y = pt
-    ax.plot(x, y, icon, color=color, label=label)
+def plot_config_pt(pt, label, icon):
+        ax = plt.gca()
+        x, y = pt
+        ax.plot(x, y, icon, label=label)
 
 def show():
     fig = plt.gcf()
@@ -140,4 +140,4 @@ def show():
             ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.10), ncol=3)
     
     plt.tight_layout()
-    plt.show()
+    plt.show(block=True)
