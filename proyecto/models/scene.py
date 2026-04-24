@@ -5,13 +5,15 @@ class Movement:
     def __init__(self, is_rotation, dx, dy, da) -> None:
         self.is_rotation = is_rotation
         self.forward = dy if dx == 0 else dx
+        self.foward = round(self.forward, 2)
+        # self.forward *= 1.10
         self.da = da
     
     def __repr__(self) -> str:
         return f"Displacement(rotation={self.is_rotation}, forward={self.forward}, da={self.da})"
     
     def __str__(self) -> str:
-        return f"Displacement(rotation={self.is_rotation}, forward={self.forward:.2f}, da={self.da:.2f})"
+        return f"Displacement(rotation={self.is_rotation}, forward={self.forward}, da={self.da})"
 
 
 
@@ -42,10 +44,10 @@ class Configuration:
         self.conf = np.array([x, y, theta])
     
     def __repr__(self):
-        return f"Configuration(x={self.point.x}, y={self.point.y}, theta={self.theta})"
+        return f"Configuration(x={self.point.x:.2f}, y={self.point.y:.2f}, theta={self.theta})"
     
     def __str__(self):
-        return f"Configuration({self.point.x}, {self.point.y}, {self.theta})"
+        return f"Configuration({self.point.x:.2f}, {self.point.y}, {self.theta})"
         
 class Obstacle:
     def __init__(self, id, data) -> None:
@@ -78,6 +80,9 @@ class Scene:
         
         self.obstacles = []
         
+        self.conf_init_r = self.calc_conf_wrt_robot_ref_pt(self.conf_init)
+        self.conf_final_r = self.calc_conf_wrt_robot_ref_pt(self.conf_final)
+        
         for i in range(int(raw_scene['obstaculos'][0])):
             pt1 = raw_scene[f'obstaculo{i+1}_pto1']
             pt2 = raw_scene[f'obstaculo{i+1}_pto2']
@@ -85,6 +90,10 @@ class Scene:
             self.obstacles.append(Obstacle(i+1, [pt1, pt2]))
             
         self.robot_geom =  self.calculate_robot_geometry_at_origin(Point(0, 0))
+        
+    def calc_conf_wrt_robot_ref_pt(self, q: Configuration):
+        dist = .3 / 2
+        return Configuration(q.point.x - dist, q.point.y - dist, q.theta)
          
     def calculate_robot_geometry_at_origin(self, pt: Point):
         dist = .3 / 2
@@ -99,4 +108,4 @@ class Scene:
         return f"Scene(dimension={self.dimension}, q0={self.conf_init}, qf={self.conf_final}, dfrente={self.dist_front}, dderecha={self.dist_right})\nObstacles:\n  {obstacles_str}"
     
     def __repr__(self):
-        return f"Scene(dimension={self.dimension}, conf_init={self.conf_init}, conf_final={self.conf_final}, dist_front={self.dist_front}, dist_right={self.dist_right}, obstacles={len(self.obstacles)})"
+        return f"Scene(dimension={self.dimension}, conf_init={self.conf_init}, conf_final={self.conf_final}, , conf_init_r={self.conf_init_r}, conf_final_r={self.conf_final_r}, dist_front={self.dist_front}, dist_right={self.dist_right}, obstacles={len(self.obstacles)})"

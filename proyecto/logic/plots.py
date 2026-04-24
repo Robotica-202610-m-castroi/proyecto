@@ -1,10 +1,11 @@
-# import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import math
 import datetime
 
-# matplotlib.use('SVG')
+
+import matplotlib
+matplotlib.use('agg')
 
 def plot_unit_circle(vectors):
     ax = plt.gca()
@@ -91,7 +92,7 @@ def plot_cell_classification(grid, classes):
 
             cell = grid[i, j]
 
-            a, b, c, d = cell
+            a, b, c, d, e = cell
 
             xs = [a[0], b[0], d[0], c[0]]
             ys = [a[1], b[1], d[1], c[1]]
@@ -144,6 +145,11 @@ def plot_robot_orientation(init_pt, theta):
     dy0 = 0.3 * math.sin(theta)
     plt.arrow(init_pt[0], init_pt[1], dx0, dy0, color='blue', head_width=0.1)
 
+def plot_trayectory(listq):
+    x = list(map(lambda q: q.point.x,  listq))
+    y = list(map(lambda q: q.point.y, listq))
+    plt.scatter(x, y, label='Trayectoria')
+
 def configure_plot():
         fig, ax = plt.subplots(figsize=(10, 10))
         
@@ -160,7 +166,7 @@ def plot_config_pt(pt, label, icon):
         x, y = pt
         ax.plot(x, y, icon, label=label)
 
-def save():
+def save(escena):
     fig = plt.gcf()
     axes = fig.get_axes()
 
@@ -171,7 +177,12 @@ def save():
     
     plt.tight_layout()
     
-    plt.savefig(f'../planificacion_{datetime.datetime.now()}.png')
+    
+    
+    timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    filename = f'out/{escena}_planificacion.png'
+    plt.savefig(filename)
+    print(f"Plot saved as: {filename}")
 
 def show():
     fig = plt.gcf()

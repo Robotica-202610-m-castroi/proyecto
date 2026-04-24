@@ -37,8 +37,10 @@ def discretizar_cspace(scene, cspace, resolucion=0.2):
             b = (x_max, y_min)
             c = (x_min, y_max)
             d = (x_max, y_max)
+            
+            e = ((x_min + x_max) / 2, (y_min + y_max) / 2)
 
-            cell = [a, b, c, d]
+            cell = [a, b, c, d, e]
             cells[i, j] = cell
 
             # 🔥 1. frontera = gris

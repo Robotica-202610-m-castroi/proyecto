@@ -163,22 +163,6 @@ class CSpace:
                 rprime = (normal_idx + 1) % len(self.robot_rotated.points)
                 oprime = (next_idx + 1) % len(obstacle_geom.points)
                 
-                # print(f'tipo C {normal_idx+1},{next_idx+1} | b_{next_idx+1}-a_{normal_idx+1}, b_{next_idx+1}-a_{rprime+1}, b_{oprime+1}-a_{normal_idx+1}, b_{oprime+1}-a_{rprime+1}')
-
-                # print(
-                #     obstacle_geom.points[next_idx] , self.robot_rotated.points[normal_idx], '||',
-                #     obstacle_geom.points[next_idx] , self.robot_rotated.points[rprime], '||',
-                #     obstacle_geom.points[oprime] , self.robot_rotated.points[normal_idx], '||',
-                #     obstacle_geom.points[oprime] , self.robot_rotated.points[rprime],  '||',
-                # )
-                # input()
-                # print(
-                #     obstacle_geom.points[next_idx] - self.robot_rotated.points[normal_idx], '||',
-                #     obstacle_geom.points[next_idx] - self.robot_rotated.points[rprime], '||',
-                #     obstacle_geom.points[oprime] - self.robot_rotated.points[normal_idx], '||',
-                #     obstacle_geom.points[oprime] - self.robot_rotated.points[rprime],  '||',
-                # )
-                # input()
                 c_obstacle.extend([
                     obstacle_geom.points[next_idx] - self.robot_rotated.points[normal_idx],
                     obstacle_geom.points[next_idx] - self.robot_rotated.points[rprime],

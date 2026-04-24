@@ -127,7 +127,7 @@ class NavigationNode(Node):
             
         return completado
 
-    def mover_relativo(self, distancia_x_metros, distancia_y_metros, cono_vision=30, dist_segura=0.3, vel_lineal=0.4):
+    def mover_relativo(self, distancia_x_metros, distancia_y_metros, cono_vision=30, dist_segura=0.1, vel_lineal=0.4):
         """
         Desplazamiento usando Cinemática de Tiempo (Dead Reckoning).
         Evalúa el obstáculo según la dirección (Adelante, Atrás, Lados).
@@ -197,7 +197,6 @@ class NavigationNode(Node):
     def parse_scene_text(self, text:str):
         scene = {}
         for i, line in enumerate(text.splitlines()):
-            print(line)
             data = line.split(',')
             scene[data[0].lower()] = list(map(float, data[1:]))
         return scene
@@ -247,6 +246,7 @@ class NavigationNode(Node):
                         # ======================================
                         # 1. Construir el C-Espacio con theta=0
                         # ======================================
+                        print(self.scene.__repr__())
                         
                         cspace = CSpace(
                             self.scene.robot_geom, 
@@ -262,7 +262,7 @@ class NavigationNode(Node):
                         )
                         
                         plot_polygon(
-                            cspace.robot_rotated.points,
+                            cspace.robot_rotated.points + np.array(self.scene.conf_init_r.conf[:2]),
                             color='b--', 
                             labelstr=f'Robot (rotado θ={self.scene.conf_init.theta})'
                         )
@@ -277,10 +277,10 @@ class NavigationNode(Node):
                         # 2. Discretizar el espacio de trabajo
                         # ======================================
                         
-                        res = 0.5
+                        res = 0.2
                         grid, cells = discretizar_cspace(self.scene, cspace, resolucion=res)
                         
-                        plot_cell_classification(cells, grid)
+                        # plot_cell_classification(cells, grid)
 
                         # ================================
                         # 3. Calcular ruta - algoritmo A*
@@ -301,60 +301,47 @@ class NavigationNode(Node):
                             
                             theta0 = math.radians(self.scene.conf_init.theta)
                             plot_robot_orientation(
-                                self.scene.conf_init.conf[:2], 
+                                self.scene.conf_init_r.conf[:2], 
                                 theta0 
                             )
                             
-                            thetaf = math.radians(self.scene.conf_final.theta)
+                            thetaf = math.radians(self.scene.conf_final_r.theta)
                             plot_robot_orientation(
                                 self.scene.conf_final.conf[:2], 
                                 thetaf
                             )
                             
-                            output_path = os.path.join(
-                                os.path.dirname(os.path.abspath(__file__)),
-                                f"ruta_escena_{numero}.txt"
-                            )
-                            
-                            with open(output_path, 'w', encoding='utf-8') as f:
-                                for c in path:
-                                    f.write(f"{c}\n")
-                            self.get_logger().info(f"Configuraciones guardadas en: {output_path}")
-                            
-                            # show()
                             
                             # ================================
                             # 4. Ejecutar trayectoria
                             # ================================
-                            # --> 4.1 Convertir representación matricial a trayectoria
-                            # discrete_space es una matrix nxm donde M[i, j] = [a, b , c, d, e]  y cada uno de esos a su vez es una coordenada (x, y)
-                                    # c ---------- d
-                                    # |            |
-                                    # |            |
-                                    # |      e     |
-                                    # |            |
-                                    # |            |
-                                    # a ---------- b
-                            configs_list = define_trayectory_configs(cells, path, self.scene.conf_final)
-
-                            print(self.current_x, self.current_y, self.current_theta)
                             
+                            configs_list = define_trayectory_configs(cells, path, self.scene.conf_final_r)
+
+                            configs_list.insert(0, self.scene.conf_init_r)
+
                             output_path = os.path.join(
                                 os.path.dirname(os.path.abspath(__file__)),
-                                f"configuraciones_escena_{numero}.txt"
+                                '..',
+                                'out',
+                                f"{numero}_configuraciones_escena.txt"
                             )
                             
                             with open(output_path, 'w', encoding='utf-8') as f:
                                 for c in configs_list:
                                     f.write(f"{c}\n")
-                            self.get_logger().info(f"Configuraciones guardadas en: {output_path}")
                         
-                            # configs_list.insert(0, Configuration(self.current_x, self.current_y, self.current_theta))
-                            self.movements = define_trayectory_movements(configs_list)
+                            self.get_logger().info(f"Configuraciones guardadas en: {output_path}")
                             
+                            plot_trayectory(configs_list)
+                            save(numero)
+                            
+                            self.movements = define_trayectory_movements(configs_list)
                             output_path = os.path.join(
                                 os.path.dirname(os.path.abspath(__file__)),
-                                f"trayectorias_escena_{numero}.txt"
+                                '..',
+                                'out',
+                                f"{numero}_trayectorias_escena.txt"
                             )
                             
                             with open(output_path, 'w', encoding='utf-8') as f:
@@ -362,10 +349,8 @@ class NavigationNode(Node):
                                     f.write(f"{m}\n")
                                     
                             self.get_logger().info(f"Movimientos guardados en: {output_path}")
-                            self.get_logger().info("Comenzando ejecución de trayectoria")
+                            
                             # --> 4.2 Ejectuar trayectoria
-                            
-                            
                             self.get_logger().info("Comenzando ejecución de trayectoria")
 
                             for i, mov in enumerate(self.movements):
@@ -374,18 +359,41 @@ class NavigationNode(Node):
                                     break
                                 
                                 if mov.is_rotation:
-                                    self.get_logger().info(f"Rotando {mov.da}")
+                                    print(f"Rotando {mov.da}")
                                     self.parametros_comando = [mov.da]
                                     self.comando_activo = 3
                                 else:
-                                    self.get_logger().info(f"{i}: Desplazando x, y {[mov.forward, 0]}")
+                                    print(f"{i}: Desplazando x, y {[mov.forward, 0]}")
                                     self.parametros_comando = [mov.forward, 0]
                                     self.comando_activo = 4
                                 
+                                print(f"curr.x={self.current_x} | curr.y={self.current_y}")
                                 self.command_done.wait()
                                 self.command_done.clear()
-                                time.sleep(0.1)
                                 
+                                time.sleep(1)
+
+                            self.get_logger().info("FIN de trayectoria")
+                            
+                            # ================================
+                            # 5. Cálculo de configuraciones
+                            # ================================
+                            q_teo = self.scene.conf_final
+                            q_est = Configuration(
+                                self.scene.conf_init_r.point.x + self.current_x + .15,
+                                self.scene.conf_init_r.point.y + self.current_y + .15,
+                                self.scene.conf_init_r.theta + self.current_theta,
+                            )
+                            
+                            
+                            d_frente = self.leer_distancia_direccion('frente')
+                            d_izq = self.leer_distancia_direccion('izquierda')
+
+                            print(f"curr.x={self.current_x} | curr.y={self.current_y}")
+                            print(q_est.__str__())
+                            print(f"f={d_frente}, i={d_izq}")
+                            
+                            
                         else:
                             print("No se encontró ruta")
                         
@@ -402,6 +410,7 @@ class NavigationNode(Node):
     # BUCLE PRINCIPAL DE CONTROL
     # =======================================================
     def control_loop(self):
+        
         # Evitar fallos si no hay datos del sensor todavía
         if self.last_scan is None:
             pass
@@ -418,26 +427,15 @@ class NavigationNode(Node):
             if estado == 'COMPLETADO':
                 self.get_logger().info("Desplazamiento relativo completado.")
                 self.comando_activo = None
-                self.command_done.set()  # Signal next command
+                self.command_done.set()  
+                time.sleep(0.5)
             elif estado == 'BLOQUEADO':
                 self.get_logger().warn("¡Obstáculo detectado! Ruta bloqueada. Abortando movimiento.")
                 self.blocked = True
                 self.comando_activo = None
-                self.command_done.set()  # Signal to stop waiting
+                time.sleep(0.5)
+                self.command_done.set()  
 
-
-        # 5.TODO: Una vez acabada localizar y reportar configuraciones (resultado en .txt)
-        # q_teorica = self.scene.conf_final
-        # q_est = Configuration(self.current_x, self.current_y, self.current_theta)
-        # # print(q-est)
-        # TODO: q_act
-        # TODO: escribir TXT con las configuraciones
-
-            
-
-            
-            
-            
 def main(args=None):
     rclpy.init(args=args)
     node = NavigationNode()
