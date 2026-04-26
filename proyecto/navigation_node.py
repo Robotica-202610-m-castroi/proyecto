@@ -127,7 +127,7 @@ class NavigationNode(Node):
             
         return completado
 
-    def mover_relativo(self, distancia_x_metros, distancia_y_metros, cono_vision=30, dist_segura=0.1, vel_lineal=0.4):
+    def mover_relativo(self, distancia_x_metros, distancia_y_metros, cono_vision=30, dist_segura=0.3, vel_lineal=0.4):
         """
         Desplazamiento usando Cinemática de Tiempo (Dead Reckoning).
         Evalúa el obstáculo según la dirección (Adelante, Atrás, Lados).
@@ -307,7 +307,7 @@ class NavigationNode(Node):
                             
                             thetaf = math.radians(self.scene.conf_final_r.theta)
                             plot_robot_orientation(
-                                self.scene.conf_final.conf[:2], 
+                                self.scene.conf_final_r.conf[:2], 
                                 thetaf
                             )
                             
@@ -316,39 +316,40 @@ class NavigationNode(Node):
                             # 4. Ejecutar trayectoria
                             # ================================
                             
-                            configs_list = define_trayectory_configs(cells, path, self.scene.conf_final_r)
+                            configs_list = define_trayectory_configs(cells, path, self.scene.conf_init)
 
                             configs_list.insert(0, self.scene.conf_init_r)
+                            configs_list.append(self.scene.conf_final_r)
 
-                            output_path = os.path.join(
+                            configs_output_path = os.path.join(
                                 os.path.dirname(os.path.abspath(__file__)),
                                 '..',
                                 'out',
-                                f"{numero}_configuraciones_escena.txt"
+                                f"{numero}_configuraciones.txt"
                             )
                             
-                            with open(output_path, 'w', encoding='utf-8') as f:
+                            with open(configs_output_path, 'w', encoding='utf-8') as f:
                                 for c in configs_list:
                                     f.write(f"{c}\n")
                         
-                            self.get_logger().info(f"Configuraciones guardadas en: {output_path}")
+                            self.get_logger().info(f"Configuraciones guardadas en: {configs_output_path}")
                             
                             plot_trayectory(configs_list)
                             save(numero)
                             
                             self.movements = define_trayectory_movements(configs_list)
-                            output_path = os.path.join(
-                                os.path.dirname(os.path.abspath(__file__)),
-                                '..',
-                                'out',
-                                f"{numero}_trayectorias_escena.txt"
-                            )
+                            # output_path = os.path.join(
+                            #     os.path.dirname(os.path.abspath(__file__)),
+                            #     '..',
+                            #     'out',
+                            #     f"{numero}_trayectorias.txt"
+                            # )
                             
-                            with open(output_path, 'w', encoding='utf-8') as f:
-                                for m in self.movements:
-                                    f.write(f"{m}\n")
+                            # with open(output_path, 'w', encoding='utf-8') as f:
+                            #     for m in self.movements:
+                            #         f.write(f"{m}\n")
                                     
-                            self.get_logger().info(f"Movimientos guardados en: {output_path}")
+                            # self.get_logger().info(f"Movimientos guardados en: {output_path}")
                             
                             # --> 4.2 Ejectuar trayectoria
                             self.get_logger().info("Comenzando ejecución de trayectoria")
@@ -373,7 +374,7 @@ class NavigationNode(Node):
                                 
                                 time.sleep(1)
 
-                            self.get_logger().info("FIN de trayectoria")
+                            self.get_logger().info("Fin de trayectoria.")
                             
                             # ================================
                             # 5. Cálculo de configuraciones
@@ -386,14 +387,19 @@ class NavigationNode(Node):
                             )
                             
                             
-                            d_frente = self.leer_distancia_direccion('frente')
-                            d_izq = self.leer_distancia_direccion('izquierda')
+                            d_frente_obs = self.leer_distancia_direccion('frente')
+                            d_der_obs = self.leer_distancia_direccion('izquierda')
+                            
+                            q_act = Configuration(
+                                self.scene.dimension[0] - d_frente_obs  * np.cos(self.current_theta),
+                                d_der_obs * np.cos(self.current_theta),
+                                self.current_theta
+                            )
+                            
+                            with open(configs_output_path, 'a', encoding='utf-8') as f:
+                                f.write(f"q_f_est: {q_est}\n")
+                                f.write(f"q_f_act:{q_act}\n")
 
-                            print(f"curr.x={self.current_x} | curr.y={self.current_y}")
-                            print(q_est.__str__())
-                            print(f"f={d_frente}, i={d_izq}")
-                            
-                            
                         else:
                             print("No se encontró ruta")
                         

@@ -1,5 +1,6 @@
 import numpy as np
 import os 
+import sys
 
 from .logic.trajectory import define_trayectory_configs, define_trayectory_movements
 from .models.scene import Configuration, Scene
@@ -59,8 +60,8 @@ def parse_scene_text(text:str):
     return scene
 
 if __name__ == "__main__":
-    numero = 1
-    txt = cargar_escena(1)
+    numero = int(sys.argv[1])
+    txt = cargar_escena(numero)
 
     scene_raw = parse_scene_text(txt)
     scene = Scene(scene_raw)
@@ -142,9 +143,9 @@ if __name__ == "__main__":
             # |            |
             # |            |
             # a ---------- b
-        show()
+        # show()
         
-        configs_list = define_trayectory_configs(cells, path, scene.conf_final)
+        configs_list = define_trayectory_configs(cells, path, scene.conf_init)
 
         for c in configs_list:
             print(c)
