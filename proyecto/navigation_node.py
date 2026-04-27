@@ -338,18 +338,19 @@ class NavigationNode(Node):
                             save(numero)
                             
                             self.movements = define_trayectory_movements(configs_list)
-                            # output_path = os.path.join(
-                            #     os.path.dirname(os.path.abspath(__file__)),
-                            #     '..',
-                            #     'out',
-                            #     f"{numero}_trayectorias.txt"
-                            # )
+
+                            movements_output_path = os.path.join(
+                                os.path.dirname(os.path.abspath(__file__)),
+                                '..',
+                                'out',
+                                f"{numero}_movimientos.txt"
+                            )
                             
-                            # with open(output_path, 'w', encoding='utf-8') as f:
-                            #     for m in self.movements:
-                            #         f.write(f"{m}\n")
+                            with open(movements_output_path, 'w', encoding='utf-8') as f:
+                                for m in self.movements:
+                                    f.write(f"{m}\n")
                                     
-                            # self.get_logger().info(f"Movimientos guardados en: {output_path}")
+                            self.get_logger().info(f"Movimientos guardados en: {movements_output_path}")
                             
                             # --> 4.2 Ejectuar trayectoria
                             self.get_logger().info("Comenzando ejecución de trayectoria")

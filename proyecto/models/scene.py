@@ -15,10 +15,8 @@ class Movement:
     def __str__(self) -> str:
         return f"Displacement(rotation={self.is_rotation}, forward={self.forward:0.2f}, da={self.da})"
 
-
-
-# TODO: clean up, point might not be necessary
 class Point:
+    
     def __init__(self, x, y) -> None:
         self.x = x
         self.y = y
