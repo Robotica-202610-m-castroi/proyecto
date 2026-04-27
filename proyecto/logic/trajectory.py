@@ -63,8 +63,8 @@ def define_trayectory_movements(configurations: list[Configuration]):
     
     for q_n in configurations[1:]:
         dx, dy, d0 = q_n.conf - q_c.conf
-        t_dx += dx
-        t_dy += dy
+        t_dx += abs(dx)
+        t_dy += abs(dy)
         if movements:
             prev_was_rotation = movements[-1].is_rotation 
             if prev_was_rotation:
