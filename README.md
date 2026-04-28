@@ -12,6 +12,7 @@ Este paquete proporciona una base educativa para trabajar con odometría, Lidar 
 - `data/` : Archivos de escena (`Escena-Problema1.txt` ... `Escena-Problema6.txt`) usados por el nodo para pruebas y visualización textual.
 - `resource/` : Recursos de empaquetado.
 - `test/` : Tests básicos y comprobaciones de estilo.
+- `out/`: salida de la ejecución de los escenarios: txt de configuraciones, png de la planificacion y trayectoria y txt de los movimientos calculados.
 
 **Características importantes**
 - Interfaz de consola no bloqueante: `navigation_node.py` inicia un hilo con un menú interactivo para probar funciones durante la ejecución.
