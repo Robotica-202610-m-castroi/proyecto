@@ -79,7 +79,15 @@ class CSpace:
                 pts.append(contact)
                 # print(contact)
             
-            self.c_obstacles.append(pts)
+            self.c_obstacles.append(self.__inflate_points(pts, 1.2))
+
+    def __inflate_points(self, points, scale=1.1):
+        if len(points) == 0:
+            return []
+
+        pts = np.array(points, dtype=float)
+        centroid = np.mean(pts, axis=0)
+        return [centroid + (pt - centroid) * scale for pt in pts]
 
     
     

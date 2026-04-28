@@ -5,15 +5,16 @@ class Movement:
     def __init__(self, is_rotation, dx, dy, da) -> None:
         self.is_rotation = is_rotation
         self.forward = dy if dx == 0 else dx
-        # self.forward *= 1.40
-        # self.foward = round(self.forward, 2)
+        self.forward *= 1.5 
+        self.forward = abs(self.forward)
+        # self.foward = round(self.forward, )
         self.da = da
     
     def __repr__(self) -> str:
-        return f"Displacement(rotation={self.is_rotation}, forward={self.forward:0.2f}, da={self.da})"
+        return f"Displacement(rotation={self.is_rotation}, forward={self.forward:0.3f}, da={self.da})"
     
     def __str__(self) -> str:
-        return f"Displacement(rotation={self.is_rotation}, forward={self.forward:0.2f}, da={self.da})"
+        return f"Displacement(rotation={self.is_rotation}, forward={self.forward:0.3f}, da={self.da})"
 
 class Point:
     

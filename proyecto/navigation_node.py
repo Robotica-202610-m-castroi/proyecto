@@ -280,7 +280,7 @@ class NavigationNode(Node):
                         res = 0.2
                         grid, cells = discretizar_cspace(self.scene, cspace, resolucion=res)
                         
-                        # plot_cell_classification(cells, grid)
+                        plot_cell_classification(cells, grid)
 
                         # ================================
                         # 3. Calcular ruta - algoritmo A*
@@ -301,15 +301,23 @@ class NavigationNode(Node):
                             
                             theta0 = math.radians(self.scene.conf_init.theta)
                             plot_robot_orientation(
-                                self.scene.conf_init_r.conf[:2], 
+                                self.scene.conf_init.conf[:2], 
                                 theta0 
                             )
                             
-                            thetaf = math.radians(self.scene.conf_final_r.theta)
+                            thetaf = math.radians(self.scene.conf_final.theta)
+                            
+
                             plot_robot_orientation(
-                                self.scene.conf_final_r.conf[:2], 
+                                self.scene.conf_final.conf[:2], 
                                 thetaf
                             )
+                            
+                            plot_polygon(
+                                cspace.robot_rotated.points + np.array(self.scene.conf_final_r.conf[:2]),
+                                color='b--', 
+                                labelstr=f'Robot en q_f'
+                            )   
                             
                             
                             # ================================
@@ -319,7 +327,7 @@ class NavigationNode(Node):
                             configs_list = define_trayectory_configs(cells, path, self.scene.conf_init)
 
                             configs_list.insert(0, self.scene.conf_init_r)
-                            configs_list.append(self.scene.conf_final_r)
+                            configs_list.append(self.scene.conf_final)
 
                             configs_output_path = os.path.join(
                                 os.path.dirname(os.path.abspath(__file__)),
@@ -354,6 +362,7 @@ class NavigationNode(Node):
                             
                             # --> 4.2 Ejectuar trayectoria
                             self.get_logger().info("Comenzando ejecución de trayectoria")
+                            print(f"curr.x={self.current_x} | curr.y={self.current_y} | curr.0={self.current_theta}")
 
                             for i, mov in enumerate(self.movements):
                                 if self.blocked:
@@ -361,19 +370,20 @@ class NavigationNode(Node):
                                     break
                                 
                                 if mov.is_rotation:
-                                    print(f"Rotando {mov.da}")
+                                    print(f"{i} Rotando {mov.da}")
                                     self.parametros_comando = [mov.da]
                                     self.comando_activo = 3
                                 else:
                                     print(f"{i}: Desplazando x, y {[mov.forward, 0]}")
+                                    # Pasar: forward_distance, 0, dir_check_x
                                     self.parametros_comando = [mov.forward, 0]
                                     self.comando_activo = 4
                                 
-                                print(f"curr.x={self.current_x} | curr.y={self.current_y}")
+                                print(f"curr.x={self.current_x} | curr.y={self.current_y} | curr.0={self.current_theta}")
                                 self.command_done.wait()
                                 self.command_done.clear()
                                 
-                                time.sleep(1)
+                                # time.sleep(1)
 
                             self.get_logger().info("Fin de trayectoria.")
                             
@@ -435,12 +445,12 @@ class NavigationNode(Node):
                 self.get_logger().info("Desplazamiento relativo completado.")
                 self.comando_activo = None
                 self.command_done.set()  
-                time.sleep(0.5)
+                # time.sleep(0.5)
             elif estado == 'BLOQUEADO':
                 self.get_logger().warn("¡Obstáculo detectado! Ruta bloqueada. Abortando movimiento.")
                 self.blocked = True
                 self.comando_activo = None
-                time.sleep(0.5)
+                # time.sleep(0.5)
                 self.command_done.set()  
 
 def main(args=None):

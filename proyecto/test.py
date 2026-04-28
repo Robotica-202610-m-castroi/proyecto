@@ -60,101 +60,132 @@ def parse_scene_text(text:str):
     return scene
 
 if __name__ == "__main__":
-    numero = int(sys.argv[1])
-    txt = cargar_escena(numero)
+    # numero = int(sys.argv[1])
+    # txt = cargar_escena(numero)
+                
+    for i in range(1, 7):
 
-    scene_raw = parse_scene_text(txt)
-    scene = Scene(scene_raw)
+        text = cargar_escena(numero_escena=i)
+        if text:
+            raw_scene = parse_scene_text(text)
+            scene = Scene(raw_scene)
+            print("Escena cargada, comenzando planificación...")
 
-    cspace = CSpace(
-            scene.robot_geom, 
-            scene.obstacles, 
-            0
-        )
+        
+            if scene:
+                # ======================================
+                # 1. Construir el C-Espacio con theta=0
+                # ======================================
+
+                
+                cspace = CSpace(
+                    scene.robot_geom, 
+                    scene.obstacles, 
+                    0
+                )
+                
+                configure_plot()
+                
+                plot_polygon(
+                    [[0,0], [scene.dimension[0], 0], [*scene.dimension], [0, scene.dimension[1]]], 'y:', thickness=5, 
+                    labelstr='Frontera W-Space / C-Space'
+                )
+                
+                plot_polygon(
+                    cspace.robot_rotated.points + np.array(scene.conf_init_r.conf[:2]),
+                    color='b--', 
+                    labelstr=f'Robot (rotado θ={scene.conf_init.theta})'
+                )
+                
+                for obs in cspace.obstacles_geom:
+                    plot_polygon(obs.points, 'r-', labelstr=f'Obstáculo {obs.id}')
+            
+                for idx, cobs in enumerate(cspace.c_obstacles):
+                    plot_polygon(cobs, 'g-', labelstr=f'C-Obstáculo {idx + 1}')
+                
+                # ======================================
+                # 2. Discretizar el espacio de trabajo
+                # ======================================
+                
+                res = 0.2
+                grid, cells = discretizar_cspace(scene, cspace, resolucion=res)
+                
+                plot_cell_classification(cells, grid)
+
+                # ================================
+                # 3. Calcular ruta - algoritmo A*
+                # ================================
+                
+                start, goal = get_start_goal_cell(scene, res)
+                path = astar(grid, start, goal)
+                if path:
+                    print("Ruta encontrada")
+                    print(path)
+                    
+                    plot_path(
+                        path, 
+                        scene.conf_init.conf[:2],
+                        scene.conf_final.conf[:2],
+                        res
+                    )
+                    
+                    theta0 = math.radians(scene.conf_init.theta)
+                    plot_robot_orientation(
+                        scene.conf_init.conf[:2], 
+                        theta0 
+                    )
+                    
+                    thetaf = math.radians(scene.conf_final.theta)
+                    
+
+                    plot_robot_orientation(
+                        scene.conf_final.conf[:2], 
+                        thetaf
+                    )
+                    
+                    plot_polygon(
+                        cspace.robot_rotated.points + np.array(scene.conf_final_r.conf[:2]),
+                        color='b--', 
+                        labelstr=f'Robot en q_f'
+                    )   
+                    
+                    
+                    # ================================
+                    # 4. Ejecutar trayectoria
+                    # ================================
+                    
+                    configs_list = define_trayectory_configs(cells, path, scene.conf_init)
+
+                    configs_list.insert(0, scene.conf_init_r)
+                    configs_list.append(scene.conf_final)
+
+                    configs_output_path = os.path.join(
+                        os.path.dirname(os.path.abspath(__file__)),
+                        '..',
+                        'out',
+                        f"{i}_configuraciones.txt"
+                    )
+                    
+                    with open(configs_output_path, 'w', encoding='utf-8') as f:
+                        for c in configs_list:
+                            f.write(f"{c}\n")
+                
+                    # self.get_logger().info(f"Configuraciones guardadas en: {configs_output_path}")
+                    
+                    plot_trayectory(configs_list)
+                    save(i)
+                    
+                    movements = define_trayectory_movements(configs_list)
+
+                    movements_output_path = os.path.join(
+                        os.path.dirname(os.path.abspath(__file__)),
+                        '..',
+                        'out',
+                        f"{i}_movimientos.txt"
+                    )
+                    
+                    with open(movements_output_path, 'w', encoding='utf-8') as f:
+                        for m in movements:
+                            f.write(f"{m}\n")
                             
-    configure_plot()
-
-    plot_polygon(
-    [[0,0], [scene.dimension[0], 0], [*scene.dimension], [0, scene.dimension[1]]], 'y:', thickness=5, 
-    labelstr='Frontera W-Space / C-Space'
-    )
-
-    plot_polygon(
-    cspace.robot_rotated.points,
-    color='b--', 
-    labelstr=f'Robot (rotado θ={scene.conf_init.theta})'
-    )
-
-    for obs in cspace.obstacles_geom:
-        plot_polygon(obs.points, 'r-', labelstr=f'Obstáculo {obs.id}')
-
-    for idx, cobs in enumerate(cspace.c_obstacles):
-        plot_polygon(cobs, 'g-', labelstr=f'C-Obstáculo {idx + 1}')
-
-    # ======================================
-    # 2. Discretizar el espacio de trabajo
-    # ======================================
-
-    res = 0.2
-    grid, cells = discretizar_cspace(scene, cspace, resolucion=res)
-
-    plot_cell_classification(cells, grid)
-
-    # ================================
-    # 3. Calcular ruta - algoritmo A*
-    # ================================
-
-    start, goal = get_start_goal_cell(scene, res)
-    path = astar(grid, start, goal)
-    if path:
-        print("Ruta encontrada")
-        print(path)
-
-        plot_path(
-        path, 
-        scene.conf_init.conf[:2],
-        scene.conf_final.conf[:2],
-        res
-        )
-
-        theta0 = math.radians(scene.conf_init.theta)
-        plot_robot_orientation(
-        scene.conf_init.conf[:2], 
-        theta0 
-        )
-
-        thetaf = math.radians(scene.conf_final.theta)
-        plot_robot_orientation(
-            scene.conf_final.conf[:2], 
-            thetaf
-        )
-
-        
-
-        # ================================
-        # 4. Ejecutar trayectoria
-        # ================================
-        # --> 4.1 Convertir representación matricial a trayectoria
-        # discrete_space es una matrix nxm donde M[i, j] = [a, b , c, d, e]  y cada uno de esos a su vez es una coordenada (x, y)
-            # c ---------- d
-            # |            |
-            # |            |
-            # |      e     |
-            # |            |
-            # |            |
-            # a ---------- b
-        # show()
-        
-        configs_list = define_trayectory_configs(cells, path, scene.conf_init)
-
-        for c in configs_list:
-            print(c)
-            
-        print("=" * 45)
-
-        movements = define_trayectory_movements(configs_list)
-
-        for m in movements:
-            print(m)
-            
-        
+                    # self.get_logger().info(f"Movimientos guardados en: {movements_output_path}")
