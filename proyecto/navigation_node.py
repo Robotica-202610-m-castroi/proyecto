@@ -403,8 +403,8 @@ class NavigationNode(Node):
                             
                             q_act = Configuration(
                                 self.scene.dimension[0] - d_frente_obs  * np.cos(self.current_theta),
-                                d_der_obs * np.cos(self.current_theta),
-                                self.current_theta
+                                self.scene.dimension[1] - d_der_obs * np.cos(self.current_theta),
+                                math.degrees(self.current_theta)
                             )
                             
                             with open(configs_output_path, 'a', encoding='utf-8') as f:
